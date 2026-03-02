@@ -339,10 +339,7 @@ const parseFile = async (file: File): Promise<string> => {
       return result.value;
     } else { throw new Error("DOCX parser not loaded yet."); }
   } else if (file.name.endsWith('.pdf') || file.type === 'application/pdf') {
-    // Get API key from Admin Dashboard config
-    const apiKey = getConfiguredApiKey();
-    
-    // Use server-side API for PDF parsing
+    // Use server-side PDF parsing WITHOUT AI (pure text extraction)
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -350,10 +347,10 @@ const parseFile = async (file: File): Promise<string> => {
       reader.onerror = reject;
     });
     
-    const response = await fetch('/api/ai', {
+    const response = await fetch('/api/parse-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'parse-pdf', pdfData: base64Data, apiKey })
+      body: JSON.stringify({ pdfBase64: base64Data })
     });
     
     if (!response.ok) {
@@ -375,13 +372,11 @@ const parseFile = async (file: File): Promise<string> => {
 
 const fetchJobWithGemini = async (url: string) => {
   try {
-    // Get API key from Admin Dashboard config
-    const apiKey = getConfiguredApiKey();
-    
-    const response = await fetch('/api/ai', {
+    // Use server-side web scraping WITHOUT AI (pure HTML parsing)
+    const response = await fetch('/api/scrape-job', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fetch-job', jobUrl: url, apiKey })
+      body: JSON.stringify({ url })
     });
     
     if (!response.ok) {
@@ -391,7 +386,7 @@ const fetchJobWithGemini = async (url: string) => {
     
     const data = await response.json();
     return data.text;
-  } catch (error) { throw new Error("Could not automatically fetch job details."); }
+  } catch (error) { throw new Error("Could not automatically fetch job details. Please paste the job description manually."); }
 };
 
 // --- COMPONENTS ---
