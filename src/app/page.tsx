@@ -24,8 +24,9 @@ interface AppSettings {
 
 // --- CLIENT-SIDE LOGIC ---
 
-// UNIVERSAL AI ROUTER: Strictly uses the built-in environment capabilities.
-// Enforces Admin API Toggle to prevent background calls when disabled.
+// UNIVERSAL AI ROUTER: Calls server-side API which handles Gemini authentication
+// On Vercel: Set GEMINI_API_KEY in environment variables
+// On Gemini Studio: Uses built-in AI capabilities
 const generateAIContent = async (prompt: string): Promise<string> => {
   try {
     const providers = JSON.parse(localStorage.getItem('ats_ai_providers') || '[]');
@@ -36,11 +37,20 @@ const generateAIContent = async (prompt: string): Promise<string> => {
       throw new Error("AI Processing is currently disabled. An administrator must enable an AI provider in the Admin Dashboard before processing.");
     }
 
-    // Passing an empty string securely hooks into the execution environment's AI proxy
-    const genAI = new GoogleGenerativeAI("");
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    // Call our server-side API route which handles the Gemini API key securely
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "AI request failed");
+    }
+
+    const data = await response.json();
+    return data.text;
   } catch (err) {
     console.error("AI Error:", err);
     throw err;
@@ -319,16 +329,27 @@ const parseFile = async (file: File): Promise<string> => {
       return result.value;
     } else { throw new Error("DOCX parser not loaded yet."); }
   } else if (file.name.endsWith('.pdf') || file.type === 'application/pdf') {
-    const genAI = new GoogleGenerativeAI(""); 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025" });
+    // Use server-side API for PDF parsing
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve((reader.result as string).split(',')[1]);
       reader.onerror = reject;
     });
-    const result = await model.generateContent([{ inlineData: { mimeType: 'application/pdf', data: base64Data } }, { text: "Extract all text verbatim." }]);
-    return result.response.text();
+    
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'parse-pdf', pdfData: base64Data })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "PDF parsing failed");
+    }
+    
+    const data = await response.json();
+    return data.text;
   } else {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -341,10 +362,19 @@ const parseFile = async (file: File): Promise<string> => {
 
 const fetchJobWithGemini = async (url: string) => {
   try {
-    const genAI = new GoogleGenerativeAI("");
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-09-2025", tools: [{ googleSearch: {} }] });
-    const result = await model.generateContent(`You are a job analyst. TARGET URL: ${url}. ACTION: Analyze job listing. TASK: Summarize Title, Company, Responsibilities, Hard Skills, Soft Skills. OUTPUT: Comprehensive summary.`);
-    return result.response.text();
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch-job', jobUrl: url })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Job fetch failed");
+    }
+    
+    const data = await response.json();
+    return data.text;
   } catch (error) { throw new Error("Could not automatically fetch job details."); }
 };
 
