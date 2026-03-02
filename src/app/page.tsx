@@ -24,9 +24,16 @@ interface AppSettings {
 
 // --- CLIENT-SIDE LOGIC ---
 
+// Get API key from Admin Dashboard configuration (localStorage)
+const getConfiguredApiKey = (): string => {
+  if (typeof window === 'undefined') return "";
+  const providers = JSON.parse(localStorage.getItem('ats_ai_providers') || '[]');
+  const activeProvider = providers.find((p: any) => p.status && p.apiKey);
+  return activeProvider?.apiKey || "";
+};
+
 // UNIVERSAL AI ROUTER: Calls server-side API which handles Gemini authentication
-// On Vercel: Set GEMINI_API_KEY in environment variables
-// On Gemini Studio: Uses built-in AI capabilities
+// API key can come from: 1) Admin Dashboard config, 2) Environment variables
 const generateAIContent = async (prompt: string): Promise<string> => {
   try {
     const providers = JSON.parse(localStorage.getItem('ats_ai_providers') || '[]');
@@ -34,14 +41,17 @@ const generateAIContent = async (prompt: string): Promise<string> => {
     
     // Explicitly check if AI is enabled in the Admin Dashboard
     if (activeProviders.length === 0) {
-      throw new Error("AI Processing is currently disabled. An administrator must enable an AI provider in the Admin Dashboard before processing.");
+      throw new Error("AI Processing is currently disabled. Go to Admin → AI Providers and enable a provider with your API key.");
     }
+
+    // Get API key from Admin Dashboard config
+    const apiKey = getConfiguredApiKey();
 
     // Call our server-side API route which handles the Gemini API key securely
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, apiKey })
     });
 
     if (!response.ok) {
@@ -329,6 +339,9 @@ const parseFile = async (file: File): Promise<string> => {
       return result.value;
     } else { throw new Error("DOCX parser not loaded yet."); }
   } else if (file.name.endsWith('.pdf') || file.type === 'application/pdf') {
+    // Get API key from Admin Dashboard config
+    const apiKey = getConfiguredApiKey();
+    
     // Use server-side API for PDF parsing
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -340,7 +353,7 @@ const parseFile = async (file: File): Promise<string> => {
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'parse-pdf', pdfData: base64Data })
+      body: JSON.stringify({ action: 'parse-pdf', pdfData: base64Data, apiKey })
     });
     
     if (!response.ok) {
@@ -362,10 +375,13 @@ const parseFile = async (file: File): Promise<string> => {
 
 const fetchJobWithGemini = async (url: string) => {
   try {
+    // Get API key from Admin Dashboard config
+    const apiKey = getConfiguredApiKey();
+    
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fetch-job', jobUrl: url })
+      body: JSON.stringify({ action: 'fetch-job', jobUrl: url, apiKey })
     });
     
     if (!response.ok) {

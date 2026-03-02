@@ -4,15 +4,15 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, pdfData, jobUrl, action } = body;
+    const { prompt, pdfData, jobUrl, action, apiKey: clientApiKey } = body;
 
-    // Get API key from environment variable
-    // On Vercel: set GEMINI_API_KEY in your environment variables
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "";
+    // Priority: 1. Client-provided API key (from Admin Dashboard config)
+    //           2. Environment variable (for server deployment)
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "";
 
     if (!apiKey) {
       return NextResponse.json({ 
-        error: "AI API key not configured. Please add GEMINI_API_KEY to your Vercel environment variables.\n\nGet a free API key at: https://aistudio.google.com/app/apikey" 
+        error: "No API key configured!\n\nTo fix this:\n1. Login as admin\n2. Go to Admin → AI Providers\n3. Enable 'Google Gemini' and add your API key\n4. Or add GEMINI_API_KEY to Vercel environment variables\n\nGet a free API key at: https://aistudio.google.com/app/apikey" 
       }, { status: 500 });
     }
 
