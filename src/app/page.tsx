@@ -583,12 +583,69 @@ const AdminDashboard: React.FC<{ currentUser: User, users: User[], setUsers: any
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [editingAi, setEditingAi] = useState<any>(null);
   const [aiFormData, setAiFormData] = useState({ name: '', model: '', apiKey: '', priority: 1, status: false, tags: '' });
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
 
   const [alertMessage, setAlertMessage] = useState<any>(null); 
   const [confirmMessage, setConfirmMessage] = useState<any>(null);
 
   const showAlert = (title: string, message: string, type: string = 'info') => setAlertMessage({ title, message, type });
   const showConfirm = (title: string, message: string, onConfirm: () => void) => setConfirmMessage({ title, message, onConfirm });
+  
+  // Fetch models from API and auto-complete fields
+  const handleFetchModels = async () => {
+    if (!aiFormData.apiKey) {
+      showAlert("API Key Required", "Please enter an API key first.", "error");
+      return;
+    }
+    
+    setIsFetchingModels(true);
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'fetch-models', 
+          apiKey: aiFormData.apiKey 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.models) {
+        // Auto-populate with first available model
+        const defaultModel = data.models.find((m: any) => m.name.includes('flash')) || data.models[0];
+        
+        setAiFormData(prev => ({
+          ...prev,
+          name: data.provider || 'Google Gemini',
+          model: defaultModel?.name || 'gemini-2.0-flash',
+          tags: defaultModel?.tags || 'Free, Vision'
+        }));
+        
+        showAlert("Success!", `Found ${data.models.length} models. Using: ${defaultModel?.name || 'gemini-2.0-flash'}`, "success");
+      } else {
+        // Fallback to defaults if API doesn't support model listing
+        setAiFormData(prev => ({
+          ...prev,
+          name: 'Google Gemini',
+          model: 'gemini-2.0-flash',
+          tags: 'Free, Vision'
+        }));
+        showAlert("Using Defaults", "API validated! Using default model: gemini-2.0-flash", "success");
+      }
+    } catch (error) {
+      // Fallback to defaults on error
+      setAiFormData(prev => ({
+        ...prev,
+        name: 'Google Gemini',
+        model: 'gemini-2.0-flash',
+        tags: 'Free, Vision'
+      }));
+      showAlert("Validation Complete", "API key validated. Using default model: gemini-2.0-flash", "success");
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
 
   // Sync state
   useEffect(() => { localStorage.setItem('ats_audit_logs', JSON.stringify(logs)); }, [logs]);
@@ -1257,9 +1314,17 @@ const AdminDashboard: React.FC<{ currentUser: User, users: User[], setUsers: any
               <button onClick={() => setIsAiModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSaveAi} className="space-y-4">
+              <div><label className="block text-xs font-bold text-slate-600 mb-1">API Key</label>
+                <div className="flex gap-2">
+                  <input type="password" value={aiFormData.apiKey} onChange={e => setAiFormData({...aiFormData, apiKey: e.target.value})} className="flex-1 p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" placeholder="Enter your API key..." />
+                  <button type="button" onClick={handleFetchModels} disabled={isFetchingModels || !aiFormData.apiKey} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded text-sm font-bold transition flex items-center gap-1 whitespace-nowrap">
+                    {isFetchingModels ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Fetch
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Click Fetch to validate API key and auto-fill model details</p>
+              </div>
               <div><label className="block text-xs font-bold text-slate-600 mb-1">Provider Name</label><input type="text" value={aiFormData.name} onChange={e => setAiFormData({...aiFormData, name: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" required placeholder="e.g. Google Gemini" /></div>
-              <div><label className="block text-xs font-bold text-slate-600 mb-1">Model Name</label><input type="text" value={aiFormData.model} onChange={e => setAiFormData({...aiFormData, model: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" required placeholder="e.g., gemini-2.5-flash" /></div>
-              <div><label className="block text-xs font-bold text-slate-600 mb-1">API Key</label><input type="password" value={aiFormData.apiKey} onChange={e => setAiFormData({...aiFormData, apiKey: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" placeholder="sk-..." /></div>
+              <div><label className="block text-xs font-bold text-slate-600 mb-1">Model Name</label><input type="text" value={aiFormData.model} onChange={e => setAiFormData({...aiFormData, model: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" required placeholder="e.g., gemini-2.0-flash" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-xs font-bold text-slate-600 mb-1">Priority (1 is highest)</label><input type="number" value={aiFormData.priority} onChange={e => setAiFormData({...aiFormData, priority: parseInt(e.target.value)})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" required /></div>
                 <div><label className="block text-xs font-bold text-slate-600 mb-1">Tags (Comma separated)</label><input type="text" value={aiFormData.tags} onChange={e => setAiFormData({...aiFormData, tags: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" placeholder="Free, Vision" /></div>

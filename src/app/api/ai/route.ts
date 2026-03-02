@@ -16,6 +16,32 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Handle fetch-models action - validate API key and return available models
+    if (action === "fetch-models") {
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        // Test the API key by making a simple request
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const result = await model.generateContent("Say 'OK' in one word.");
+        
+        // If successful, return the default models for Gemini
+        return NextResponse.json({ 
+          success: true,
+          provider: "Google Gemini",
+          models: [
+            { name: "gemini-2.0-flash", tags: "Free, Vision, Fast" },
+            { name: "gemini-2.0-pro", tags: "Premium, Vision" },
+            { name: "gemini-1.5-flash", tags: "Free, Vision" },
+            { name: "gemini-1.5-pro", tags: "Premium, Vision" }
+          ]
+        });
+      } catch (error: any) {
+        return NextResponse.json({ 
+          error: "Invalid API key. Please check your key and try again." 
+        }, { status: 401 });
+      }
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
