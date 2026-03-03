@@ -48,11 +48,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Increase body size limit for PDF uploads
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+// Note: In Next.js App Router, body size is handled differently
+// The default limit is usually sufficient for PDF uploads
