@@ -1324,6 +1324,13 @@ const AdminDashboard: React.FC<{ currentUser: User, users: User[], setUsers: any
                 <div><label className="block text-xs font-bold text-slate-600 mb-1">Priority (1 is highest)</label><input type="number" value={aiFormData.priority} onChange={e => setAiFormData({...aiFormData, priority: parseInt(e.target.value)})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" required /></div>
                 <div><label className="block text-xs font-bold text-slate-600 mb-1">Tags (Comma separated)</label><input type="text" value={aiFormData.tags} onChange={e => setAiFormData({...aiFormData, tags: e.target.value})} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 text-sm outline-none" placeholder="Free, Vision" /></div>
               </div>
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <input type="checkbox" id="enableProvider" checked={aiFormData.status} onChange={e => setAiFormData({...aiFormData, status: e.target.checked})} className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                <label htmlFor="enableProvider" className="text-sm text-slate-700 cursor-pointer">
+                  <span className="font-bold">Enable this provider</span>
+                  <span className="text-slate-500 block text-xs">Required for AI features to work. Only enabled providers will be used.</span>
+                </label>
+              </div>
               <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsAiModalOpen(false)} className="px-4 py-2 rounded text-sm font-medium text-slate-600 hover:bg-slate-100 transition">Cancel</button>
                 <button type="submit" className="px-4 py-2 rounded text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition">Save Provider</button>
