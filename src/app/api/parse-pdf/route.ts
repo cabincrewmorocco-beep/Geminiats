@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // PDF parsing without AI - uses pdf-parse library
+// Version: 2.1-NOAI (Non-AI PDF parsing)
+
 export async function POST(request: NextRequest) {
   try {
+    console.log("[parse-pdf] Starting PDF parsing (non-AI method)...");
+    
     const body = await request.json();
     const { pdfBase64 } = body;
 
@@ -37,7 +41,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       text: cleanText,
       pages: data.numpages,
-      chars: cleanText.length
+      chars: cleanText.length,
+      _parser: "pdf-parse-non-ai",
+      _version: "2.1-NOAI"
     });
 
   } catch (error: any) {
